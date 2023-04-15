@@ -1,0 +1,9 @@
+{
+    "eval_fps" : 1,
+    "conf_thresh": 0.25,
+    "nms_iou_thresh": 0.5,
+    "eval_iou_thresh": 0.5,
+    "eval_acc_thresh": 0.7,
+    "eval_overlap_iou_thresh":0.8,
+    "device":"gpu"
+}

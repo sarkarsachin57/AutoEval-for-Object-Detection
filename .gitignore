@@ -1,0 +1,5 @@
+########### PYTHON APP ######################
+ */__pycache__/*
+ *.pyc
+venv/*
+*yolov6l.pt
