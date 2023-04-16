@@ -1,9 +1,11 @@
 {
-    "eval_fps" : 1,
-    "conf_thresh": 0.25,
+    "conf_thresh": 0.4,
     "nms_iou_thresh": 0.5,
     "eval_iou_thresh": 0.5,
     "eval_acc_thresh": 0.7,
-    "eval_overlap_iou_thresh":0.8,
+    "eval_overlap_iou_thresh":0.7,
+    "eval_fps" : 1,
+    "show_fps_in_frames" : 1,
+    "debug": 1,
     "device":"gpu"
 }

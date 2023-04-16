@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from imutils.video import VideoStream
 from imutils.video import FPS
+from tqdm import tqdm 
 
 # Imports for YoloV6 for Object Detection
 from YOLOv6 import yolov6
@@ -22,9 +23,35 @@ from YOLOv6.yolov6.core.inferer import Inferer
 
 print('Imported all libraries and frameworks.')
 
-#Set-up hardware options
+
+
+cfg = json.load(open('eval.config.json', 'r'))
+
+print("Configurations : ", cfg)
+
+conf_thresh = cfg['conf_thresh']
+nms_iou_thresh = cfg['nms_iou_thresh']
+eval_iou_thresh = cfg['eval_iou_thresh']
+eval_acc_thresh = cfg['eval_acc_thresh']
+eval_overlap_iou_thresh = cfg['eval_overlap_iou_thresh']
+
+eval_fps = int(cfg['eval_fps'])
+show_fps = True if int(cfg['show_fps_in_frames']) == 1 else False
+debug = True if int(cfg['debug']) == 1 else False
+
+compute_device = cfg['device']
+
+assert eval_fps >= 1 and type(eval_fps) == int, f"eval_fps should not be < 1 and expected type int"
+
+
 cuda = torch.cuda.is_available()
-device = torch.device('cuda' if cuda else 'cpu')
+
+if compute_device == 'gpu' and cuda is False:
+    print("GPU or CUDA Not Found!!")
+
+device = torch.device('cpu') if compute_device == 'cpu' else torch.device('cuda' if cuda else 'cpu')
+
+print("Computing device taken :", device)
 
 
 class_names = [ 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -99,7 +126,7 @@ if device.type != 'cpu':
 
 
 
-def detect(image, model, conf_thresh, iou_thresh):
+def detect(image, model, conf_thresh, iou_thresh, target_classes=None):
 
   hide_labels: bool = False 
   hide_conf: bool = False 
@@ -126,7 +153,22 @@ def detect(image, model, conf_thresh, iou_thresh):
   img_ori = img_src.copy()
   if len(det):
     det[:, :4] = Inferer.rescale(img.shape[2:], det[:, :4], img_src.shape).round()
-  return det
+
+  dets = det.cpu().detach().numpy()
+
+  dets_final = []
+
+  for det in dets:
+     
+     x1, y1, x2, y2, conf, cls_id = det
+
+     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+     conf = round(conf, 4)
+     class_name = class_names[int(cls_id)]
+
+     dets_final.append([x1, y1, x2, y2, conf, class_name])
+  
+  return dets_final
 
 
 
@@ -167,6 +209,60 @@ def draw_bb_text(frame, text,
     bg[:,:] = text_color_bg
     frame[startY-20:startY,startX-1:startX+text_w+3] = cv2.addWeighted(frame[startY-20:startY,startX-1:startX+text_w+3], 0.0, bg, 1.0, 1)
     cv2.putText(frame, text, (startX, startY-text_h+2), font, font_scale, text_color, font_thickness)
+
+
+
+def draw_text_center_top(img, text,
+          pos=(0, 0),
+          font=cv2.FONT_HERSHEY_PLAIN,
+          font_scale=3,
+          text_color=(0, 255, 0),
+          font_thickness=2,
+          text_color_bg=(0, 0, 0)
+          ):
+
+    
+    #font_thickness=1
+    x, y = pos
+    # font_scale = 1
+    font = cv2.FONT_HERSHEY_PLAIN
+    text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+    text_w, text_h = text_size
+    # cv2.rectangle(img, (x, y - text_h - 10), (x + text_w + 10, y), text_color_bg, -1)
+    # cv2.putText(img, text, (x+5, y-5), font, font_scale, text_color, font_thickness)
+    x = int((img.shape[1]*0.5) - (text_w*0.5))
+    
+    frame_text = np.ones((text_h+20,img.shape[1],3)) * text_color_bg
+    final = np.vstack([cv2.putText(frame_text, text, (x, y), font, font_scale, text_color, font_thickness), img])
+
+    return final.astype('uint8')
+
+
+
+def draw_text_center_bottom(img, text,
+          pos=(0, 0),
+          font=cv2.FONT_HERSHEY_PLAIN,
+          font_scale=3,
+          text_color=(0, 255, 0),
+          font_thickness=2,
+          text_color_bg=(0, 0, 0)
+          ):
+
+    
+    #font_thickness=1
+    x, y = pos
+    # font_scale = 1
+    font = cv2.FONT_HERSHEY_PLAIN
+    text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+    text_w, text_h = text_size
+    # cv2.rectangle(img, (x, y - text_h - 10), (x + text_w + 10, y), text_color_bg, -1)
+    # cv2.putText(img, text, (x+5, y-5), font, font_scale, text_color, font_thickness)
+    x = int((img.shape[1]*0.5) - (text_w*0.5))
+    
+    frame_text = np.ones((text_h+20,img.shape[1],3)) * text_color_bg
+    final = np.vstack([img, cv2.putText(frame_text, text, (x, y), font, font_scale, text_color, font_thickness)])
+
+    return final.astype('uint8')
 
 
 
