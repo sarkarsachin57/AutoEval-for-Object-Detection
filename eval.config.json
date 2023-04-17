@@ -6,6 +6,6 @@
     "eval_overlap_iou_thresh":0.7,
     "eval_fps" : 1,
     "show_fps_in_frames" : 1,
-    "debug": 1,
+    "debug": 0,
     "device":"gpu"
 }

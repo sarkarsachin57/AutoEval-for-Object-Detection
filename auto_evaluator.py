@@ -163,7 +163,7 @@ def show_only_detections(image, given_model_dets):
 
 
 
-def evaluate_on_video_or_stream(path, is_stream = False, save_path = None):
+def evaluate_on_video(path, save_path = None):
     
     
     # print(f'\nvideo = {video}, conf_thresh = {conf_thresh}, iou_thresh = {iou_thresh}, trust_acc_thresh = {trust_acc_thresh}, trust_iou_thresh = {trust_iou_thresh}, debug = {debug}, save_path = {save_path}')
@@ -267,6 +267,9 @@ def evaluate_on_video_or_stream(path, is_stream = False, save_path = None):
             
         if writer is not None:
             writer.write(frame_processed)
+
+        if frame_no >= 250:
+            break
  
     if writer is not None:
         writer.release()
@@ -334,4 +337,4 @@ def evaluate_on_image_folder(path, save_path):
         
 
 
-evaluate_on_video_or_stream(path = 'demo_videos\ipcam1.mp4', is_stream = False, save_path = None)
+evaluate_on_video(path = 'demo_videos\ipcam1.mp4', save_path = None)
