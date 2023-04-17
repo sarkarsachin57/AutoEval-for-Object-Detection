@@ -171,7 +171,7 @@ def evaluate_on_video_or_stream(path, is_stream = False, save_path = None):
     video = cv2.VideoCapture(path)
 
     video_fps = video.get(cv2.CAP_PROP_FPS)
-    video_frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
+    video_frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     frame_no = 0
 
@@ -191,7 +191,7 @@ def evaluate_on_video_or_stream(path, is_stream = False, save_path = None):
 
     writer = None
 
-    for i in tqdm(video_frame_count):
+    for i in tqdm(range(video_frame_count)):
 
         _, frame = video.read()
         
