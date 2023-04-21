@@ -2,11 +2,17 @@
 # Necessary Imports
 import os, requests, torch, math, cv2, sys, PIL, argparse, dlib,imutils, time, json
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+
 from datetime import datetime
 from typing import List, Optional
 from imutils.video import VideoStream
 from imutils.video import FPS
 from tqdm import tqdm 
+from itertools import combinations
 
 # Imports for YoloV6 for Object Detection
 from YOLOv6 import yolov6
@@ -28,12 +34,6 @@ print('Imported all libraries and frameworks.')
 cfg = json.load(open('eval.config.json', 'r'))
 
 print("Configurations : ", cfg)
-
-conf_thresh = cfg['conf_thresh']
-nms_iou_thresh = cfg['nms_iou_thresh']
-eval_iou_thresh = cfg['eval_iou_thresh']
-eval_acc_thresh = cfg['eval_acc_thresh']
-eval_overlap_iou_thresh = cfg['eval_overlap_iou_thresh']
 
 eval_fps = int(cfg['eval_fps'])
 show_fps = True if int(cfg['show_fps_in_frames']) == 1 else False
@@ -64,6 +64,9 @@ class_names = [ 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'tr
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
          'hair drier', 'toothbrush' ]
          
+
+
+
 def check_img_size(img_size, s=32, floor=0):
   def make_divisible( x, divisor):
     # Upward revision the value x to make it evenly divisible by the divisor.
@@ -101,74 +104,74 @@ def precess_image(path, img_size, stride):
 
   return image, img_src
 
+
+img_size = (640, 640)
+
 given_model = DetectBackend(f"models/yolov6n.pt", device=device)
-stride = given_model.stride
-class_names = load_yaml("YOLOv6/data/coco.yaml")['names']
+aux_model = DetectBackend(f"models/yolov6l.pt", device=device)
 
 given_model.model.float()
-
-img_size = (640,640)
-if device.type != 'cpu':
-  given_model(torch.zeros(1, 3, *img_size).to(device).type_as(next(given_model.model.parameters())))  # warmup
-
-
-
-aux_model = DetectBackend(f"models/yolov6l.pt", device=device)
-stride = aux_model.stride
-class_names = load_yaml("YOLOv6/data/coco.yaml")['names']
-
 aux_model.model.float()
 
-img_size = (640,640)
 if device.type != 'cpu':
-  aux_model(torch.zeros(1, 3, *img_size).to(device).type_as(next(aux_model.model.parameters())))  # warmup
+    given_model(torch.zeros(1, 3, *img_size).to(device).type_as(next(given_model.model.parameters())))  # warmup
+    aux_model(torch.zeros(1, 3, *img_size).to(device).type_as(next(aux_model.model.parameters())))  # warmup
 
 
 
 
-def detect(image, model, conf_thresh, iou_thresh, target_classes=None):
+def detect(image, model):
 
-  hide_labels: bool = False 
-  hide_conf: bool = False 
+    hide_labels: bool = False 
+    hide_conf: bool = False 
+    stride = model.stride
 
-  img_size:int = 640
+    img_size:int = 640
 
-  conf_thres: float = conf_thresh
-  iou_thres: float = iou_thresh
-  max_det:int =  1000
-  agnostic_nms: bool = False 
+    img_size = check_img_size(img_size, s=stride)
 
-  img_size = check_img_size(img_size, s=stride)
+    img, img_src = precess_image(image, img_size, stride)
+    img = img.to(device)
+    if len(img.shape) == 3:
+        img = img[None]
+        # expand for batch dim
 
-  img, img_src = precess_image(image, img_size, stride)
-  img = img.to(device)
-  if len(img.shape) == 3:
-      img = img[None]
-      # expand for batch dim
-  pred_results = model(img)
-  classes:Optional[List[int]] = None # the classes to keep
-  det = non_max_suppression(pred_results, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)[0]
+    pred_results = model(img)
 
-  gn = torch.tensor(img_src.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-  img_ori = img_src.copy()
-  if len(det):
-    det[:, :4] = Inferer.rescale(img.shape[2:], det[:, :4], img_src.shape).round()
+    return [pred_results.cpu().detach().numpy(), img.shape, img_src.shape]
 
-  dets = det.cpu().detach().numpy()
+    
 
-  dets_final = []
+def get_final_detections_post_nms(pred_results, conf_thresh, iou_thresh, target_classes=None):
 
-  for det in dets:
+    max_det:int =  1000
+    agnostic_nms: bool = False
+
+    pred_results, img_shape, img_src_shape = pred_results
+    pred_results = torch.tensor(pred_results)
+
+    classes:Optional[List[int]] = target_classes # the classes to keep
+    dets = non_max_suppression(pred_results, conf_thresh, iou_thresh, classes, agnostic_nms, max_det=max_det)[0]
+
+    gn = torch.tensor(img_src_shape)[[1, 0, 1, 0]]  # normalization gain whwh
+    if len(dets):
+        dets[:, :4] = Inferer.rescale(img_shape[2:], dets[:, :4], img_src_shape).round()
+
+    dets = dets.numpy()
+
+    dets_final = []
+
+    for det in dets:
      
-     x1, y1, x2, y2, conf, cls_id = det
+        x1, y1, x2, y2, conf, cls_id = det
 
-     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-     conf = round(conf, 4)
-     class_name = class_names[int(cls_id)]
+        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+        conf = round(conf, 4)
+        class_name = class_names[int(cls_id)]
 
-     dets_final.append([x1, y1, x2, y2, conf, class_name])
+        dets_final.append([x1, y1, x2, y2, conf, class_name])
   
-  return dets_final
+    return dets_final
 
 
 
