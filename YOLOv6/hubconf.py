@@ -1,4 +1,5 @@
 import os
+import cv2
 import math
 import pathlib
 import torch
@@ -68,11 +69,18 @@ def check_img_size(img_size, s=32, floor=0):
     return new_size if isinstance(img_size, list) else [new_size] * 2
 
 
-def precess_image(path, img_size, stride):
+def process_image(path, img_size, stride):
     '''Preprocess image before inference.'''
-    img_src = np.asarray(Image.open(path).convert('RGB'))
+    try:
+            img_src = cv2.imread(path)
+            img_src = cv2.cvtColor(img_src, cv2.COLOR_RGB2BGR)
+            assert img_src is not None, f"opencv cannot read image correctly or {path} not exists"
+    except:
+            img_src = np.asarray(Image.open(path))
+            assert img_src is not None, f"Image Not Found {path}, workdir: {os.getcwd()}"
+
     image = letterbox(img_src, img_size, stride=stride)[0]
-    image = image.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+    image = image.transpose((2, 0, 1)) # HWC to CHW
     image = torch.from_numpy(np.ascontiguousarray(image))
     image = image.float()
     image /= 255
@@ -112,7 +120,7 @@ class Detector(DetectBackend):
         return prediction
 
     def predict(self, img_path):
-        img, img_src = precess_image(img_path, self.img_size, 32)
+        img, img_src = process_image(img_path, self.img_size, 32)
         img = img.to(self.device)
         if len(img.shape) == 3:
             img = img[None]
