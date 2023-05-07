@@ -1,11 +1,14 @@
 
 # Necessary Imports
-import os, requests, torch, math, cv2, sys, PIL, argparse, dlib,imutils, time, json
+import os, requests, torch, math, cv2, sys, PIL, argparse, imutils, time, json, shutil
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
+import torch.nn as nn
+import torchvision.models as models
+import torchvision.transforms as transforms
 
 from datetime import datetime
 from typing import List, Optional
@@ -13,6 +16,7 @@ from imutils.video import VideoStream
 from imutils.video import FPS
 from tqdm import tqdm 
 from itertools import combinations
+from PIL import Image
 
 # Imports for YoloV6 for Object Detection
 from YOLOv6 import yolov6
@@ -24,7 +28,9 @@ from YOLOv6.yolov6.data.data_augment import letterbox
 from YOLOv6.yolov6.utils.nms import non_max_suppression
 from YOLOv6.yolov6.core.inferer import Inferer
 
-
+# Imports for Diversity Selection
+from submodlib.helper import create_kernel
+from submodlib import FacilityLocationFunction
 
 
 print('Imported all libraries and frameworks.')
@@ -32,6 +38,7 @@ print('Imported all libraries and frameworks.')
 
 
 cfg = json.load(open('eval.config.json', 'r'))
+default_cfg = cfg
 
 print("Configurations : ", cfg)
 
@@ -52,20 +59,7 @@ if compute_device == 'gpu' and cuda is False:
 device = torch.device('cpu') if compute_device == 'cpu' else torch.device('cuda' if cuda else 'cpu')
 
 print("Computing device taken :", device)
-
-
-class_names = [ 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
-         'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-         'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
-         'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
-         'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-         'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
-         'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
-         'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
-         'hair drier', 'toothbrush' ]
-         
-
-
+     
 
 def check_img_size(img_size, s=32, floor=0):
   def make_divisible( x, divisor):
@@ -120,6 +114,14 @@ if device.type != 'cpu':
 
 
 
+def get_model_from_path(model_path, device, img_size = (640, 640)):
+    model = DetectBackend(model_path, device=device)
+    model.model.float()
+    if device.type != 'cpu':
+        model(torch.zeros(1, 3, *img_size).to(device).type_as(next(model.model.parameters())))  
+    return model
+
+
 def detect(image, model):
 
     hide_labels: bool = False 
@@ -142,7 +144,7 @@ def detect(image, model):
 
     
 
-def get_final_detections_post_nms(pred_results, conf_thresh, iou_thresh, target_classes=None):
+def get_final_detections_post_nms(pred_results, conf_thresh, iou_thresh, class_names_list, target_classes=None, ignore_classes=[]):
 
     max_det:int =  1000
     agnostic_nms: bool = False
@@ -165,14 +167,17 @@ def get_final_detections_post_nms(pred_results, conf_thresh, iou_thresh, target_
      
         x1, y1, x2, y2, conf, cls_id = det
 
-        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-        conf = round(conf, 4)
-        class_name = class_names[int(cls_id)]
+        class_name = class_names_list[int(cls_id)]
 
-        dets_final.append([x1, y1, x2, y2, conf, class_name])
-  
+        if class_name not in ignore_classes:
+
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+            conf = round(conf, 4)
+            
+
+            dets_final.append([x1, y1, x2, y2, conf, class_name])
+    
     return dets_final
-
 
 
 
@@ -216,7 +221,6 @@ def draw_bb_text(frame, text,
 
 
 def draw_text_center_top(img, text,
-          pos=(0, 0),
           font=cv2.FONT_HERSHEY_PLAIN,
           font_scale=3,
           text_color=(0, 255, 0),
@@ -224,21 +228,60 @@ def draw_text_center_top(img, text,
           text_color_bg=(0, 0, 0)
           ):
 
-    
-    #font_thickness=1
-    x, y = pos
-    # font_scale = 1
-    font = cv2.FONT_HERSHEY_PLAIN
+    font = cv2.FONT_HERSHEY_DUPLEX
     text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
     text_w, text_h = text_size
-    # cv2.rectangle(img, (x, y - text_h - 10), (x + text_w + 10, y), text_color_bg, -1)
-    # cv2.putText(img, text, (x+5, y-5), font, font_scale, text_color, font_thickness)
-    x = int((img.shape[1]*0.5) - (text_w*0.5))
     
-    frame_text = np.ones((text_h+20,img.shape[1],3)) * text_color_bg
+    frame_text = np.ones((text_h+30,img.shape[1],3)) * text_color_bg
+
+    x = int((frame_text.shape[1]*0.5) - (text_w*0.5))
+    y = int((frame_text.shape[0]*0.5) + (text_h*0.5))
+    
     final = np.vstack([cv2.putText(frame_text, text, (x, y), font, font_scale, text_color, font_thickness), img])
 
     return final.astype('uint8')
+
+
+
+def add_box_color_legends_to_image(img, text_list, color_list, pad):
+
+    
+    img_u = np.ones((50,img.shape[1],3)) * [225, 220, 220]
+    # pos=(0, 0),
+    font=cv2.FONT_HERSHEY_DUPLEX
+    font_scale=0.7
+    text_color=(0, 255, 0)
+    font_thickness=2
+    text_color_bg=(0, 0, 0)
+
+    cx = pad
+    cr = 15
+
+    for text, color in zip(text_list, color_list):
+
+        text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+        text_w, text_h = text_size
+
+        if color is not None:
+
+            cv2.circle(img_u, (cx, img_u.shape[0] // 2), cr+1, [0,0,0], 1)
+            cv2.circle(img_u, (cx, img_u.shape[0] // 2), cr, color, -1)
+
+            x = cx + cr + cr
+        
+        else:
+            x = cx
+
+        y = (img_u.shape[0] // 2) + (text_h // 2)
+        cv2.putText(img_u, text, (x, y), font, font_scale, (0, 0, 0), font_thickness)
+
+        cx = x + text_w + pad
+        
+    final = np.vstack([img, img_u])
+
+    return final.astype('uint8')
+
+
 
 
 
@@ -296,3 +339,22 @@ def get_color(idx):
     color = (int((37 * idx) % 255), int((17 * idx) % 255), int((29 * idx) % 255))
 
     return color
+
+
+
+def frame_no_to_timestamp_str(frame_no, fps):
+
+    time_stamp = frame_no // fps
+
+    time_stamp_str = "%.2d"%(time_stamp // 3600)+":%.2d"%((time_stamp // 60) % 60)+":%.2d"%(time_stamp % 60)
+
+    return time_stamp_str
+
+
+def get_estd_processing_time(current_frame, total_frame_count, current_fps):
+
+    time_stamp = (total_frame_count - current_frame) // current_fps
+
+    time_stamp_str = "%.2d"%(time_stamp // 3600)+":%.2d"%((time_stamp // 60) % 60)+":%.2d"%(time_stamp % 60)
+
+    return time_stamp_str
