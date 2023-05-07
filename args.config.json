@@ -1,0 +1,26 @@
+{
+    "eval_on" : "",
+    "data_path" : "",
+    "main_model_path" : "",
+    "aux_model_path" : "",
+    "classnames" : "",
+    "eval_options" : {
+        "nms_conf_thresh": null,
+        "aux_conf_thresh": null,
+        "nms_iou_thresh": null,
+        "eval_iou_thresh": null,
+        "eval_acc_thresh": null,
+        "eval_low_conf_thresh": null,
+        "eval_overlap_iou_thresh": null,
+        "eval_fps" : null,
+        "ignore_classes_from_aux_det" : []
+    },
+    "summary_filters" : {
+        "acc_filter_thresh" : 50,
+        "prec_filter_thresh" : 50, 
+        "recl_filter_thresh" : 70,
+        "low_conf_filter_thresh" : 50,
+        "n_overlap_thresh" : 1,
+        "n_select" : 50
+    }
+}
