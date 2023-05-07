@@ -32,6 +32,8 @@ from YOLOv6.yolov6.core.inferer import Inferer
 from submodlib.helper import create_kernel
 from submodlib import FacilityLocationFunction
 
+pd.set_option('display.max_columns', None)
+
 
 print('Imported all libraries and frameworks.')
 
