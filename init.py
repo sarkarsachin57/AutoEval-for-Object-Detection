@@ -99,18 +99,6 @@ def precess_image(path, img_size, stride):
   return image, img_src
 
 
-img_size = (640, 640)
-
-given_model = DetectBackend(f"models/yolov6n.pt", device=device)
-aux_model = DetectBackend(f"models/yolov6l.pt", device=device)
-
-given_model.model.float()
-aux_model.model.float()
-
-if device.type != 'cpu':
-    given_model(torch.zeros(1, 3, *img_size).to(device).type_as(next(given_model.model.parameters())))  # warmup
-    aux_model(torch.zeros(1, 3, *img_size).to(device).type_as(next(aux_model.model.parameters())))  # warmup
-
 
 
 
