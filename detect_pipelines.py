@@ -52,9 +52,7 @@ def detect_on_image_folder(folder_path, given_model, aux_model):
 
         except:
 
-            
-
-            raise ValueError(image_file)
+            print('\nException at :', image_file)
 
 
 

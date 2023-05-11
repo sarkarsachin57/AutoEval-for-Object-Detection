@@ -1,6 +1,6 @@
 
 # Necessary Imports
-import os, requests, torch, math, cv2, sys, PIL, argparse, imutils, time, json, shutil
+import os, requests, torch, math, cv2, sys, PIL, argparse, imutils, time, json, shutil, random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -320,7 +320,7 @@ def get_iou(box1, box2):
     box2_area = (x4 - x3) * (y4 - y3)
     union = box1_area + box2_area - intersection
 
-    return intersection / union
+    return intersection / (union+1e-10)
 
 
 

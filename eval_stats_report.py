@@ -6,6 +6,7 @@ def describe(df, stats):
     d = df.describe()
     return pd.concat([d,df.reindex(d.columns, axis = 1).agg(stats)])
 
+
 def get_class_based_stats(class_specific_stats, tp_threshold):
 
     alldets_counts = np.unique(np.concatenate(class_specific_stats['alldets']), return_counts=True)
@@ -26,32 +27,33 @@ def get_class_based_stats(class_specific_stats, tp_threshold):
         class_based_values['class_name'].append(class_name)
 
         try:
-            class_based_values['TP'].append(tp_counts[1][list(tp_counts[0]).index(class_name)])
+            class_based_values['TP'].append(int(tp_counts[1][list(tp_counts[0]).index(class_name)]))
         except:
             class_based_values['TP'].append(0)
 
         try:
-            class_based_values['FP'].append(fp_counts[1][list(fp_counts[0]).index(class_name)])
+            class_based_values['FP'].append(int(fp_counts[1][list(fp_counts[0]).index(class_name)]))
         except:
             class_based_values['FP'].append(0)    
         
         try:
-            class_based_values['FN'].append(fn_counts[1][list(fn_counts[0]).index(class_name)])
+            class_based_values['FN'].append(int(fn_counts[1][list(fn_counts[0]).index(class_name)]))
         except:
             class_based_values['FN'].append(0)
 
         
     class_based_values = pd.DataFrame(class_based_values) 
-    class_based_values['ACC'] = (class_based_values['TP'] * 100) / (class_based_values['TP'] + class_based_values['FP'] + class_based_values['FN'])
-    class_based_values['PREC'] = (class_based_values['TP'] * 100) / (class_based_values['TP'] + class_based_values['FP'])
-    class_based_values['RECL'] = (class_based_values['TP'] * 100) / (class_based_values['TP'] + class_based_values['FN'])
+    class_based_values['ACC'] = round(((2*class_based_values['TP']+1e-10) * 100) / (2*class_based_values['TP'] + class_based_values['FP'] + class_based_values['FN'] + 1e-10), 2)
+    class_based_values['PREC'] = round(((class_based_values['TP']+1e-10) * 100) / (class_based_values['TP'] + class_based_values['FP'] + 1e-10), 2)
+    class_based_values['RECL'] = round(((class_based_values['TP']+1e-10) * 100) / (class_based_values['TP'] + class_based_values['FN'] + 1e-10), 2)
 
     class_based_values = class_based_values[class_based_values['TP'] >= tp_threshold]
 
     overall_agg = class_based_values.agg({'TP': 'sum', 'FP': 'sum', 'FN': 'sum', 'ACC' : 'mean', 'PREC': 'mean', 'RECL': 'mean'})
-    class_based_values = pd.concat([class_based_values, pd.DataFrame(pd.concat([pd.Series({'class_name':'Overall'}),overall_agg])).T]).round(2).sort_values(by='ACC', ascending=False).reset_index().drop(['index'], axis=1).to_dict()
+    class_based_values = pd.concat([class_based_values, pd.DataFrame(pd.concat([pd.Series({'class_name':'All Class Aggregation'}),overall_agg])).T]).round(2).sort_values(by='ACC', ascending=False).reset_index().drop(['index'], axis=1)
+    class_based_values = pd.concat([class_based_values.drop(class_based_values[class_based_values['class_name'] == 'All Class Aggregation'].index[0]), class_based_values[class_based_values['class_name'] == 'All Class Aggregation']])
 
-    return class_based_values
+    return class_based_values.to_dict()
 
 
 
@@ -71,26 +73,26 @@ def get_low_conf_stats(class_specific_stats, alldets_threshold):
         class_based_values['class_name'].append(class_name)
 
         try:
-            class_based_values['alldets'].append(alldets_counts[1][list(alldets_counts[0]).index(class_name)])
+            class_based_values['alldets'].append(int(alldets_counts[1][list(alldets_counts[0]).index(class_name)]))
         except:
             class_based_values['alldets'].append(0)
 
         try:
-            class_based_values['lowconf'].append(lowconf_counts[1][list(lowconf_counts[0]).index(class_name)])
+            class_based_values['lowconf'].append(int(lowconf_counts[1][list(lowconf_counts[0]).index(class_name)]))
         except:
             class_based_values['lowconf'].append(0)
             
         
     class_based_values = pd.DataFrame(class_based_values) 
-    class_based_values['LowConfPercent'] = (class_based_values['lowconf'] * 100) / class_based_values['alldets'] 
+    class_based_values['LowConfPercent'] = round((class_based_values['lowconf'] * 100) / (class_based_values['alldets']+1e-10), 2)
 
     class_based_values = class_based_values[class_based_values['alldets'] >= alldets_threshold]
 
     overall_agg = class_based_values.agg({'alldets': 'sum', 'lowconf' : 'sum', 'LowConfPercent': 'mean'})
-    class_based_values = pd.concat([class_based_values, pd.DataFrame(pd.concat([pd.Series({'class_name':'Overall'}),overall_agg])).T]).round(2).sort_values(by='alldets', ascending=False).reset_index().drop(['index'], axis=1).to_dict()
+    class_based_values = pd.concat([class_based_values, pd.DataFrame(pd.concat([pd.Series({'class_name':'All Class Aggregation'}),overall_agg])).T]).round(2).sort_values(by='alldets', ascending=False).reset_index().drop(['index'], axis=1)
+    class_based_values = pd.concat([class_based_values.drop(class_based_values[class_based_values['class_name'] == 'All Class Aggregation'].index[0]), class_based_values[class_based_values['class_name'] == 'All Class Aggregation']])
 
-    return class_based_values
-
+    return class_based_values.to_dict()
 
 
 
@@ -138,8 +140,15 @@ def generate_report(imagewise_stats, imagewise_classdist, tp_threshold, alldets_
 
     report_json['overall'] = {}
         
-    report_json['overall']['absolute'] = describe(pd.DataFrame(imagewise_stats).loc[:,['ndets', 'TP', 'FP', 'FN', 'nLowConf', 'nOverLap']], ['sum']).iloc[1:].round(2).to_dict()
+    abs_values = describe(pd.DataFrame(imagewise_stats).loc[:,['ndets', 'TP', 'FP', 'FN', 'nLowConf', 'nOverLap']], ['sum']).iloc[1:].round(2)
+    abs_values.index = ['mean', 'std', 'min', '25%', '50%', '75%', 'max', 'Total']
+    report_json['overall']['absolute'] = abs_values.to_dict()
     report_json['overall']['relative'] = pd.DataFrame(imagewise_stats).loc[:,['ACC', 'PREC', 'RECL', 'pLowConf']].describe().iloc[1:].round(2).to_dict()
+
+    report_json['overall']['relative']['ACC']['Overall'] = round(100*(2*abs_values['TP']['Total']+1e-10) / (2*abs_values['TP']['Total']+abs_values['FP']['Total']+abs_values['FN']['Total']+1e-10), 2)
+    report_json['overall']['relative']['PREC']['Overall'] = round(100*(abs_values['TP']['Total']+1e-10) / (abs_values['TP']['Total']+abs_values['FP']['Total']+1e-10), 2)
+    report_json['overall']['relative']['RECL']['Overall'] = round(100*(abs_values['TP']['Total']+1e-10) / (abs_values['TP']['Total']+abs_values['FN']['Total']+1e-10), 2)
+    report_json['overall']['relative']['pLowConf']['Overall'] = round(100*abs_values['nLowConf']['Total'] / (abs_values['nLowConf']['Total']+abs_values['ndets']['Total']+1e-10), 2)
 
     report_json['class_based'] = get_class_based_stats(imagewise_classdist, tp_threshold)
     report_json['low_conf_stats'] = get_low_conf_stats(imagewise_classdist, alldets_threshold)
@@ -160,14 +169,6 @@ def generate_report(imagewise_stats, imagewise_classdist, tp_threshold, alldets_
         # print(pd.DataFrame(report_json['overlaps_stats_percentage']))
 
     return report_json
-
-
-
-
-
-
-
-
 
 
 

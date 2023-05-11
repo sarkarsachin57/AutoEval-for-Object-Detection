@@ -3,3 +3,7 @@
  *.pyc
 venv/*
 *yolov6l.pt
+AutoEval_venv1/
+__pycache__/
+3.1.2
+flask_api.py

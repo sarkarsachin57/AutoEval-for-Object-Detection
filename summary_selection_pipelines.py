@@ -185,12 +185,18 @@ def get_diverse_set_of_images(image_paths, n_select):
 
 
 
-def get_summary_images(imagewise_stats, acc_filter_thresh, prec_filter_thresh, recl_filter_thresh, low_conf_filter_thresh, n_overlap_thresh, n_select):
+# def get_summary_images(imagewise_stats, acc_filter_thresh, prec_filter_thresh, recl_filter_thresh, low_conf_filter_thresh, n_overlap_thresh, n_select):
 
-    acc_prec_filtered = np.logical_and(np.array(imagewise_stats['ACC']) <= acc_filter_thresh, np.array(imagewise_stats['PREC']) <= prec_filter_thresh)
-    acc_prec_recl_filtered = np.logical_and(acc_prec_filtered, np.array(imagewise_stats['RECL']) <= recl_filter_thresh)
-    acc_prec_recl_low_conf_filtered = np.logical_and(acc_prec_recl_filtered, np.array(imagewise_stats['pLowConf']) >= low_conf_filter_thresh)
-    final_filtered_list = np.where(np.logical_and(acc_prec_recl_low_conf_filtered, np.array(imagewise_stats['nOverLap']) >= n_overlap_thresh))[0]
+#     acc_prec_filtered = np.logical_and(np.array(imagewise_stats['ACC']) <= acc_filter_thresh, np.array(imagewise_stats['PREC']) <= prec_filter_thresh)
+#     acc_prec_recl_filtered = np.logical_and(acc_prec_filtered, np.array(imagewise_stats['RECL']) <= recl_filter_thresh)
+#     acc_prec_recl_low_conf_filtered = np.logical_and(acc_prec_recl_filtered, np.array(imagewise_stats['pLowConf']) >= low_conf_filter_thresh)
+#     final_filtered_list = np.where(np.logical_and(acc_prec_recl_low_conf_filtered, np.array(imagewise_stats['nOverLap']) >= n_overlap_thresh))[0]
+#     final_filtered_raw_frames = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
+
+def get_summary_images(imagewise_stats, false_filter_thresh, fp_filter_thresh, fn_filter_thresh, n_select):
+
+    filtered = np.logical_and(np.array(imagewise_stats['FP']) >= fp_filter_thresh, np.array(imagewise_stats['FN']) >= fn_filter_thresh)
+    final_filtered_list = np.logical_and(filtered, (np.array(imagewise_stats['FP']) + np.array(imagewise_stats['FN'])) >= false_filter_thresh)[0]
     final_filtered_raw_frames = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
     
     final_summary_lists = {}
@@ -223,19 +229,33 @@ def get_summary_images(imagewise_stats, acc_filter_thresh, prec_filter_thresh, r
 
 
 
+# def get_overall_summary_from_all_images_and_videos(multi_stats_json, 
+#                                                    acc_filter_thresh=50, 
+#                                                    prec_filter_thresh=50, 
+#                                                    recl_filter_thresh=70, 
+#                                                    low_conf_filter_thresh=50, 
+#                                                    n_overlap_thresh=2, 
+#                                                    n_select=30):
+
+#     imagewise_stats = multi_stats_json['imagewise_stats'][-1]
+#     return get_summary_images(imagewise_stats, 
+#                        acc_filter_thresh=acc_filter_thresh, 
+#                        prec_filter_thresh=prec_filter_thresh, 
+#                        recl_filter_thresh=recl_filter_thresh, 
+#                        low_conf_filter_thresh=low_conf_filter_thresh, 
+#                        n_overlap_thresh=2, 
+#                        n_select=n_select)
+
+
 def get_overall_summary_from_all_images_and_videos(multi_stats_json, 
-                                                   acc_filter_thresh=50, 
-                                                   prec_filter_thresh=50, 
-                                                   recl_filter_thresh=70, 
-                                                   low_conf_filter_thresh=50, 
-                                                   n_overlap_thresh=2, 
-                                                   n_select=30):
+                                                   false_filter_thresh, 
+                                                   fp_filter_thresh, 
+                                                   fn_filter_thresh,
+                                                   n_select):
 
     imagewise_stats = multi_stats_json['imagewise_stats'][-1]
     return get_summary_images(imagewise_stats, 
-                       acc_filter_thresh=acc_filter_thresh, 
-                       prec_filter_thresh=prec_filter_thresh, 
-                       recl_filter_thresh=recl_filter_thresh, 
-                       low_conf_filter_thresh=low_conf_filter_thresh, 
-                       n_overlap_thresh=2, 
+                       false_filter_thresh=false_filter_thresh, 
+                       fp_filter_thresh=fp_filter_thresh, 
+                       fn_filter_thresh=fn_filter_thresh, 
                        n_select=n_select)

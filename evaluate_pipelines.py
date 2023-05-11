@@ -105,11 +105,11 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
         n_dets = len(given_model_dets)
         n_low_conf = len(low_conf_ids)
 
-        p_low_conf = round(((n_low_conf+(1e-10))*100) / (n_dets+(1e-10)), 2)
+        p_low_conf = round((n_low_conf*100) / (n_dets+(1e-10)), 2)
 
         n_overlaps = len(overlap_det_ids)
 
-        acc = round((tp+(1e-10)) / (tp+fp+fn+(1e-10)), 4)
+        acc = round((2*tp+(1e-10)) / (2*tp+fp+fn+(1e-10)), 4)
         prec = round((tp+(1e-10)) / (tp+fp+(1e-10)), 4)
         recl = round((tp+(1e-10)) / (tp+fn+(1e-10)), 4)
         
