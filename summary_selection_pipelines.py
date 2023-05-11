@@ -196,7 +196,7 @@ def get_diverse_set_of_images(image_paths, n_select):
 def get_summary_images(imagewise_stats, false_filter_thresh, fp_filter_thresh, fn_filter_thresh, n_select):
 
     filtered = np.logical_and(np.array(imagewise_stats['FP']) >= fp_filter_thresh, np.array(imagewise_stats['FN']) >= fn_filter_thresh)
-    final_filtered_list = np.logical_and(filtered, (np.array(imagewise_stats['FP']) + np.array(imagewise_stats['FN'])) >= false_filter_thresh)[0]
+    final_filtered_list = np.where(np.logical_and(filtered, (np.array(imagewise_stats['FP']) + np.array(imagewise_stats['FN'])) >= false_filter_thresh))[0]
     final_filtered_raw_frames = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
     
     final_summary_lists = {}
