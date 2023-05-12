@@ -215,9 +215,9 @@ def get_summary_images(imagewise_stats, acc_filter_thresh, prec_filter_thresh, r
 
         # final_filtered_raw_frames = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
 
-        final_filtered_tps = np.array(imagewise_stats['TP'])[final_filtered_list].tolist()
-        final_filtered_fps = np.array(imagewise_stats['FP'])[final_filtered_list].tolist()
-        final_filtered_fns = np.array(imagewise_stats['FN'])[final_filtered_list].tolist()
+        final_filtered_tps = np.array(final_filtered_tps)[final_filtered_list].tolist()
+        final_filtered_fps = np.array(final_filtered_fps)[final_filtered_list].tolist()
+        final_filtered_fns = np.array(final_filtered_fns)[final_filtered_list].tolist()
         
 
         acc = 100*(2*sum(final_filtered_tps) + 1e-10) / (2*sum(final_filtered_tps) + sum(final_filtered_fps) + sum(final_filtered_fns) + 1e-10)
