@@ -184,39 +184,64 @@ def get_diverse_set_of_images(image_paths, n_select):
     return [idx for idx, _ in selected_idx]
 
 
+def get_summary_images(imagewise_stats, acc_filter_thresh, prec_filter_thresh, recl_filter_thresh, fp_filter_thresh, fn_filter_thresh, false_filter_thresh, low_conf_filter_thresh, n_overlap_thresh, n_select):
 
-# def get_summary_images(imagewise_stats, acc_filter_thresh, prec_filter_thresh, recl_filter_thresh, low_conf_filter_thresh, n_overlap_thresh, n_select):
-
-#     acc_prec_filtered = np.logical_and(np.array(imagewise_stats['ACC']) <= acc_filter_thresh, np.array(imagewise_stats['PREC']) <= prec_filter_thresh)
-#     acc_prec_recl_filtered = np.logical_and(acc_prec_filtered, np.array(imagewise_stats['RECL']) <= recl_filter_thresh)
-#     acc_prec_recl_low_conf_filtered = np.logical_and(acc_prec_recl_filtered, np.array(imagewise_stats['pLowConf']) >= low_conf_filter_thresh)
-#     final_filtered_list = np.where(np.logical_and(acc_prec_recl_low_conf_filtered, np.array(imagewise_stats['nOverLap']) >= n_overlap_thresh))[0]
-#     final_filtered_raw_frames = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
-
-def get_summary_images(imagewise_stats, false_filter_thresh, fp_filter_thresh, fn_filter_thresh, n_select):
-
-    filtered = np.logical_and(np.array(imagewise_stats['FP']) >= fp_filter_thresh, np.array(imagewise_stats['FN']) >= fn_filter_thresh)
-    final_filtered_list = np.where(np.logical_and(filtered, (np.array(imagewise_stats['FP']) + np.array(imagewise_stats['FN'])) >= false_filter_thresh))[0]
+    filtered = np.logical_and(np.array(imagewise_stats['ACC']) <= acc_filter_thresh, np.array(imagewise_stats['PREC']) <= prec_filter_thresh)
+    filtered = np.logical_and(filtered, np.array(imagewise_stats['RECL']) <= recl_filter_thresh)
+    filtered = np.logical_and(filtered, np.array(imagewise_stats['FP']) >= fp_filter_thresh)
+    filtered = np.logical_and(filtered, np.array(imagewise_stats['FN']) >= fn_filter_thresh)
+    filtered = np.logical_and(filtered, np.array(imagewise_stats['FP']) + np.array(imagewise_stats['FN']) >= false_filter_thresh)
+    filtered = np.logical_and(filtered, np.array(imagewise_stats['nLowConf']) >= low_conf_filter_thresh)
+    final_filtered_list = np.where(np.logical_and(filtered, np.array(imagewise_stats['nOverLap']) >= n_overlap_thresh))[0]
     final_filtered_raw_frames = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
+    final_filtered_tps = np.array(imagewise_stats['TP'])[final_filtered_list].tolist()
+    final_filtered_fps = np.array(imagewise_stats['FP'])[final_filtered_list].tolist()
+    final_filtered_fns = np.array(imagewise_stats['FN'])[final_filtered_list].tolist()
     
     final_summary_lists = {}
 
     if len(final_filtered_list) > n_select:
         
         final_filtered_list = get_diverse_set_of_images(final_filtered_raw_frames, n_select)
-        
-        print('Summary Length x:', len(final_filtered_list))
-        
+                
         final_summary_lists['raw_save_path'] = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
         final_summary_lists['dets_save_path'] = np.array(imagewise_stats['dets_save_path'])[final_filtered_list].tolist()
         final_summary_lists['aux_dets_save_path'] = np.array(imagewise_stats['aux_dets_save_path'])[final_filtered_list].tolist()
         final_summary_lists['tp_fp_fn_save_path'] = np.array(imagewise_stats['tp_fp_fn_save_path'])[final_filtered_list].tolist()
         final_summary_lists['low_conf_save_path'] = np.array(imagewise_stats['low_conf_save_path'])[final_filtered_list].tolist()
         final_summary_lists['overlap_save_path'] = np.array(imagewise_stats['overlap_save_path'])[final_filtered_list].tolist()
+
+        # final_filtered_list = random.sample([i for i in range(len(final_filtered_list))], n_select)
+
+        # final_filtered_raw_frames = np.array(imagewise_stats['raw_save_path'])[final_filtered_list].tolist()
+
+        final_filtered_tps = np.array(imagewise_stats['TP'])[final_filtered_list].tolist()
+        final_filtered_fps = np.array(imagewise_stats['FP'])[final_filtered_list].tolist()
+        final_filtered_fns = np.array(imagewise_stats['FN'])[final_filtered_list].tolist()
         
+
+        acc = 100*(2*sum(final_filtered_tps) + 1e-10) / (2*sum(final_filtered_tps) + sum(final_filtered_fps) + sum(final_filtered_fns) + 1e-10)
+        prec = 100*(sum(final_filtered_tps) + 1e-10) / (sum(final_filtered_tps) + sum(final_filtered_fps) + 1e-10)
+        recl = 100*(sum(final_filtered_tps) + 1e-10) / (sum(final_filtered_tps) + sum(final_filtered_fns) + 1e-10)
+
+        # final_summary_lists['raw_save_path'] = final_filtered_raw_frames
+        final_summary_lists['ACC'] = round(acc, 2)
+        final_summary_lists['PREC'] = round(prec, 2)
+        final_summary_lists['RECL'] = round(recl, 2)
+
+        print('Summary Length :', len(final_filtered_list))
+        print(f'Estimated Accuracy : {round(acc, 2)}, Precision : {round(prec, 2)}, Recall : {round(recl, 2)}')
+
+
         return final_summary_lists
 
+    acc = 100*(2*sum(final_filtered_tps) + 1e-10) / (2*sum(final_filtered_tps) + sum(final_filtered_fps) + sum(final_filtered_fns) + 1e-10)
+    prec = 100*(sum(final_filtered_tps) + 1e-10) / (sum(final_filtered_tps) + sum(final_filtered_fps) + 1e-10)
+    recl = 100*(sum(final_filtered_tps) + 1e-10) / (sum(final_filtered_tps) + sum(final_filtered_fns) + 1e-10)
+
     print('Summary Length :', len(final_filtered_list))
+    print(f'Estimated Accuracy : {round(acc, 2)}, Precision : {round(prec, 2)}, Recall : {round(recl, 2)}')
+
 
     final_summary_lists['raw_save_path'] = final_filtered_raw_frames
     final_summary_lists['dets_save_path'] = np.array(imagewise_stats['dets_save_path'])[final_filtered_list].tolist()
@@ -225,8 +250,12 @@ def get_summary_images(imagewise_stats, false_filter_thresh, fp_filter_thresh, f
     final_summary_lists['low_conf_save_path'] = np.array(imagewise_stats['low_conf_save_path'])[final_filtered_list].tolist()
     final_summary_lists['overlap_save_path'] = np.array(imagewise_stats['overlap_save_path'])[final_filtered_list].tolist()
 
-    return final_summary_lists
+    final_summary_lists['ACC'] = round(acc, 2)
+    final_summary_lists['PREC'] = round(prec, 2)
+    final_summary_lists['RECL'] = round(recl, 2)
 
+
+    return final_summary_lists
 
 
 # def get_overall_summary_from_all_images_and_videos(multi_stats_json, 
@@ -248,14 +277,24 @@ def get_summary_images(imagewise_stats, false_filter_thresh, fp_filter_thresh, f
 
 
 def get_overall_summary_from_all_images_and_videos(multi_stats_json, 
-                                                   false_filter_thresh, 
+                                                   acc_filter_thresh, 
+                                                   prec_filter_thresh, 
+                                                   recl_filter_thresh, 
                                                    fp_filter_thresh, 
-                                                   fn_filter_thresh,
+                                                   fn_filter_thresh, 
+                                                   false_filter_thresh, 
+                                                   low_conf_filter_thresh, 
+                                                   n_overlap_thresh,
                                                    n_select):
 
     imagewise_stats = multi_stats_json['imagewise_stats'][-1]
     return get_summary_images(imagewise_stats, 
-                       false_filter_thresh=false_filter_thresh, 
-                       fp_filter_thresh=fp_filter_thresh, 
-                       fn_filter_thresh=fn_filter_thresh, 
-                       n_select=n_select)
+                        acc_filter_thresh, 
+                        prec_filter_thresh, 
+                        recl_filter_thresh, 
+                        fp_filter_thresh, 
+                        fn_filter_thresh, 
+                        false_filter_thresh, 
+                        low_conf_filter_thresh, 
+                        n_overlap_thresh,
+                        n_select=n_select)
