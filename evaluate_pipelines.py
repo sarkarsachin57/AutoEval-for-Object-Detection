@@ -2,7 +2,6 @@ from init import *
 from eval_utils import *
 
 
-
 def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
                     nms_conf_thresh = cfg['nms_conf_thresh'],
                     aux_conf_thresh = cfg['aux_conf_thresh'],
@@ -10,6 +9,8 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
                     eval_iou_thresh = cfg['eval_iou_thresh'],
                     eval_acc_thresh = cfg['eval_acc_thresh'],
                     eval_low_conf_thresh = cfg['eval_low_conf_thresh'],
+                    uncertainty_thresh = cfg['eval_uncertainty_thresh'],
+                    margin_thresh = cfg['eval_margin_thresh'],
                     eval_overlap_iou_thresh = cfg['eval_overlap_iou_thresh'],
                     class_names_list = [],
                     ignore_classes_from_aux_det = [],
@@ -39,9 +40,12 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
     imagewise_stats['TP'] = []
     imagewise_stats['FP'] = []
     imagewise_stats['FN'] = []
+    imagewise_stats['avg_conf'] = []
     imagewise_stats['nLowConf'] = []
     imagewise_stats['pLowConf'] = []
     imagewise_stats['nOverLap'] = []
+    imagewise_stats['uncertainty'] = []
+    imagewise_stats['margin'] = []
 
     if save_outputs:
     
@@ -49,18 +53,24 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
         imagewise_stats['aux_dets_save_path'] = []
         imagewise_stats['tp_fp_fn_save_path'] = []
         imagewise_stats['low_conf_save_path'] = []
+        imagewise_stats['high_en_save_path'] = []
+        imagewise_stats['low_margin_save_path'] = []
         imagewise_stats['overlap_save_path'] = []
         
         dets_save_dir = os.path.join('process_out', 'processed_images', name+'_dets')
         aux_dets_save_dir = os.path.join('process_out', 'processed_images', name+'_aux_dets')
         tp_fp_fn_save_dir = os.path.join('process_out', 'processed_images', name+'_tp_fp_fn')
         low_conf_save_dir = os.path.join('process_out', 'processed_images', name+'_low_conf')
+        high_un_save_dir = os.path.join('process_out', 'processed_images', name+'_high_un')
+        low_margin_save_dir = os.path.join('process_out', 'processed_images', name+'_low_margin')
         overlap_save_dir = os.path.join('process_out', 'processed_images', name+'_overlap')
 
         os.makedirs(dets_save_dir, exist_ok=True)
         os.makedirs(aux_dets_save_dir, exist_ok=True)
         os.makedirs(tp_fp_fn_save_dir, exist_ok=True)
         os.makedirs(low_conf_save_dir, exist_ok=True)
+        os.makedirs(high_un_save_dir, exist_ok=True)
+        os.makedirs(low_margin_save_dir, exist_ok=True)
         os.makedirs(overlap_save_dir, exist_ok=True)
 
 
@@ -69,10 +79,14 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
     if is_video:
         imagewise_classdist['frame_no'] = []
         imagewise_classdist['timestamp'] = []
-    imagewise_classdist['alldets'] = []
+    imagewise_classdist['all_classes'] = []
     imagewise_classdist['TP'] = []
     imagewise_classdist['FP'] = []
     imagewise_classdist['FN'] = []
+    imagewise_classdist['all_confs'] = []
+    imagewise_classdist['all_entropies'] = []
+    imagewise_classdist['margin_class_pairs'] = []
+    imagewise_classdist['all_margins'] = []
     imagewise_classdist['LowConf'] = []
     imagewise_classdist['OverLap'] = []
 
@@ -90,13 +104,17 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
 
         image_file_name = os.path.split(raw_save_path)[1]
 
-        given_model_dets = get_final_detections_post_nms(given_model_pred_results, nms_conf_thresh, nms_iou_thresh, class_names_list, target_classes=None)
-        aux_model_dets = get_final_detections_post_nms(aux_model_pred_results, aux_conf_thresh, nms_iou_thresh, class_names_list, target_classes=None, ignore_classes=ignore_classes_from_aux_det)
+        given_model_dets, given_model_class_probs = get_final_detections_post_nms(given_model_pred_results, nms_conf_thresh, nms_iou_thresh, class_names_list, target_classes=None)
+        aux_model_dets, aux_model_class_probs = get_final_detections_post_nms(aux_model_pred_results, aux_conf_thresh, nms_iou_thresh, class_names_list, target_classes=None, ignore_classes=ignore_classes_from_aux_det)
 
-
-        tp_dets_ids, fp_dets_ids, fn_dets_ids, tp_dets_classes, fp_dets_classes, fn_dets_classes, miou = get_false_detections(given_model_dets, aux_model_dets)
-        low_conf_ids , low_conf_classes, all_conf_classes = get_low_conf_detections(given_model_dets)
-        overlap_det_ids, overlap_det_classes = get_detections_with_high_overlap(given_model_dets)
+        all_classes, ndets = get_all_classes_from_detections(given_model_dets)
+        tp_dets_ids, fp_dets_ids, fn_dets_ids, tp_dets_classes, fp_dets_classes, fn_dets_classes, miou = get_false_detections(given_model_dets, aux_model_dets, eval_iou_thresh)
+        low_conf_ids , low_conf_classes, all_confs, avg_conf = get_low_conf_detections(given_model_dets, eval_low_conf_thresh)
+        uncertainty_ids , all_entropies, avg_entropy = get_uncertainty_detections(given_model_dets, given_model_class_probs, uncertainty_thresh)
+        low_margin_ids , margin_class_pairs, all_margins, avg_margin = get_low_margin_detections(given_model_dets, given_model_class_probs, class_names_list, margin_thresh)
+        overlap_det_ids, overlap_det_classes = get_detections_with_high_overlap(given_model_dets, eval_overlap_iou_thresh)
+        
+        
 
         tp = len(tp_dets_ids)
         fp = len(fp_dets_ids)
@@ -112,6 +130,12 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
         acc = round((2*tp+(1e-10)) / (2*tp+fp+fn+(1e-10)), 4)
         prec = round((tp+(1e-10)) / (tp+fp+(1e-10)), 4)
         recl = round((tp+(1e-10)) / (tp+fn+(1e-10)), 4)
+
+
+        avg_conf = avg_conf if avg_conf is not np.nan else 100.0
+        avg_entropy = avg_entropy if avg_entropy is not np.nan else 0.0
+        avg_margin = avg_margin if avg_margin is not np.nan else 100.0
+
         
         imagewise_stats['idx'].append(idx)
         if is_video:
@@ -125,19 +149,26 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
         imagewise_stats['TP'].append(tp)
         imagewise_stats['FP'].append(fp)
         imagewise_stats['FN'].append(fn)
+        imagewise_stats['avg_conf'].append(avg_conf)
         imagewise_stats['nLowConf'].append(n_low_conf)
         imagewise_stats['pLowConf'].append(p_low_conf)
         imagewise_stats['nOverLap'].append(n_overlaps)
+        imagewise_stats['uncertainty'].append(avg_entropy)
+        imagewise_stats['margin'].append(avg_margin)
 
 
         imagewise_classdist['idx'].append(idx)
         if is_video:
             imagewise_classdist['frame_no'].append(frame_no)
             imagewise_classdist['timestamp'].append(timestamp)
-        imagewise_classdist['alldets'].append(all_conf_classes)
+        imagewise_classdist['all_classes'].append(all_classes)
         imagewise_classdist['TP'].append(tp_dets_classes)
         imagewise_classdist['FP'].append(fp_dets_classes)
         imagewise_classdist['FN'].append(fn_dets_classes)
+        imagewise_classdist['all_confs'].append(all_confs)
+        imagewise_classdist['all_entropies'].append(all_entropies)
+        imagewise_classdist['margin_class_pairs'].append(margin_class_pairs)
+        imagewise_classdist['all_margins'].append(all_margins)
         imagewise_classdist['LowConf'].append(low_conf_classes)
         imagewise_classdist['OverLap'].append(overlap_det_classes)
 
@@ -153,24 +184,32 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
             image_with_aux_dets = show_only_detections(image, aux_model_dets, class_names_list, aux=True)
             image_false_dets = show_false_detections(image, given_model_dets, aux_model_dets, tp_dets_ids, fp_dets_ids, fn_dets_ids)
             image_low_conf_dets = show_low_conf_detections(image, given_model_dets, low_conf_ids)       
+            image_high_un_dets = show_uncertainty_detections(image, given_model_dets, uncertainty_ids)       
+            image_low_margin_dets = show_low_margin_detections(image, given_model_dets, low_margin_ids)       
             image_overlap_dets = show_detections_with_high_overlap(image, given_model_dets, overlap_det_ids)
 
             dets_save_path = os.path.join(dets_save_dir, image_file_name)
             aux_dets_save_path = os.path.join(aux_dets_save_dir, image_file_name)
             tp_fp_fn_save_path = os.path.join(tp_fp_fn_save_dir, image_file_name)
             low_conf_save_path = os.path.join(low_conf_save_dir, image_file_name)
+            high_un_save_path = os.path.join(high_un_save_dir, image_file_name)
+            low_margin_save_path = os.path.join(low_margin_save_dir, image_file_name)
             overlap_save_path = os.path.join(overlap_save_dir, image_file_name)
 
             cv2.imwrite(dets_save_path, image_with_dets)
             cv2.imwrite(aux_dets_save_path, image_with_aux_dets)
             cv2.imwrite(tp_fp_fn_save_path, image_false_dets)
             cv2.imwrite(low_conf_save_path, image_low_conf_dets)
+            cv2.imwrite(high_un_save_path, image_high_un_dets)
+            cv2.imwrite(low_margin_save_path, image_low_margin_dets)
             cv2.imwrite(overlap_save_path, image_overlap_dets)
 
             imagewise_stats['dets_save_path'].append(dets_save_path)
             imagewise_stats['aux_dets_save_path'].append(aux_dets_save_path)
             imagewise_stats['tp_fp_fn_save_path'].append(tp_fp_fn_save_path)
             imagewise_stats['low_conf_save_path'].append(low_conf_save_path)
+            imagewise_stats['high_un_save_path'].append(high_un_save_path)
+            imagewise_stats['low_margin_save_path'].append(low_margin_save_path)
             imagewise_stats['overlap_save_path'].append(overlap_save_path)
 
             
@@ -203,6 +242,7 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
 
     
     return imagewise_stats, imagewise_classdist
+
 
 
 
