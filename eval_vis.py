@@ -42,9 +42,9 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
         print('\n\n')
 
     fig = go.Figure(data=[
-        go.Bar(name='TP', x=class_based_df.sort_values(by='TP', ascending=False)['class_name'], y=class_based_df.sort_values(by='TP', ascending=False)['TP']),
-        go.Bar(name='FP', x=class_based_df.sort_values(by='TP', ascending=False)['class_name'], y=class_based_df.sort_values(by='TP', ascending=False)['FP']),
-        go.Bar(name='FN', x=class_based_df.sort_values(by='TP', ascending=False)['class_name'], y=class_based_df.sort_values(by='TP', ascending=False)['FN']),
+        go.Bar(name='True Positive', x=class_based_df.sort_values(by='TP', ascending=False)['class_name'], y=class_based_df.sort_values(by='TP', ascending=False)['TP']),
+        go.Bar(name='False Positive', x=class_based_df.sort_values(by='TP', ascending=False)['class_name'], y=class_based_df.sort_values(by='TP', ascending=False)['FP']),
+        go.Bar(name='False Negetive', x=class_based_df.sort_values(by='TP', ascending=False)['class_name'], y=class_based_df.sort_values(by='TP', ascending=False)['FN']),
     ])
     # Change the bar mode
     fig.update_layout(barmode='group')
@@ -67,8 +67,8 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
     low_conf_stats = pd.DataFrame(report['low_conf_stats']).round(2)
 
     fig = go.Figure(data=[
-        go.Bar(name='Alldets', x=low_conf_stats.sort_values(by='alldets', ascending=False)['class_name'], y=low_conf_stats.sort_values(by='alldets', ascending=False)['alldets']),
-        go.Bar(name='LowConf', x=low_conf_stats.sort_values(by='alldets', ascending=False)['class_name'], y=low_conf_stats.sort_values(by='alldets', ascending=False)['lowconf'])
+        go.Bar(name='All detections', x=low_conf_stats.sort_values(by='all_classes', ascending=False)['class_name'], y=low_conf_stats.sort_values(by='all_classes', ascending=False)['all_classes']),
+        go.Bar(name='Low Confidence detections', x=low_conf_stats.sort_values(by='all_classes', ascending=False)['class_name'], y=low_conf_stats.sort_values(by='all_classes', ascending=False)['lowconf'])
     ])
     # Change the bar mode
     fig.update_layout(barmode='group')
@@ -89,7 +89,7 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
         print('\n\n')
 
     fig = px.bar(x=low_conf_stats.sort_values(by='LowConfPercent', ascending=False)['class_name'], y=low_conf_stats.sort_values(by='LowConfPercent', ascending=False)['LowConfPercent'], color=low_conf_stats.sort_values(by='LowConfPercent', ascending=False)['LowConfPercent'],
-                labels={"x":"Classes","y":"LowConf Percentages"})
+                labels={"x":"Classes","y":"Percentages of Low Conf detections"})
     fig.update_layout(
         title={'text':"Class Wise Bar Chart Visualization of Percentages of Low Conf detections with respect to All detections",
                             'x':0.5,'y':0.97},
@@ -105,6 +105,110 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
     if show:
         fig.show()
         print('\n\n')
+
+
+    fig = px.bar(x=low_conf_stats.sort_values(by='LowConfPercent', ascending=False)['class_name'], y=low_conf_stats.sort_values(by='LowConfPercent', ascending=False)['LowConfPercent'], color=low_conf_stats.sort_values(by='LowConfPercent', ascending=False)['LowConfPercent'],
+                labels={"x":"Classes","y":"Percentages of Low Conf detections"})
+    fig.update_layout(
+        title={'text':"Class Wise Bar Chart Visualization of Percentages of Low Conf detections with respect to All detections",
+                            'x':0.5,'y':0.97},
+        xaxis_title="Classes",
+        yaxis_title="Scores (%) -->",
+        font=dict(
+            family="Georgia",
+            size=18
+        )
+    )
+
+    fig.write_html(os.path.join(save_dir, 'class_wise_low_conf_percent_bar.html'))
+    if show:
+        fig.show()
+        print('\n\n')
+
+    avg_conf_stats = pd.DataFrame(report['avg_conf_stats']).round(2)
+
+    fig = px.bar(x=avg_conf_stats.sort_values(by='all_confs')['all_classes'], y=avg_conf_stats.sort_values(by='all_confs')['all_confs'], color=avg_conf_stats.sort_values(by='all_confs')['all_confs'],
+                labels={"x":"Classes","y":"Average Confidence of detections"})
+    fig.update_layout(
+        title={'text':"Class Wise Bar Chart Visualization of Average Confidence of detections",
+                            'x':0.5,'y':0.97},
+        xaxis_title="Classes",
+        yaxis_title="Average Confidences (%) -->",
+        font=dict(
+            family="Georgia",
+            size=18
+        )
+    )
+
+    fig.write_html(os.path.join(save_dir, 'class_wise_avg_conf_bar.html'))
+    if show:
+        fig.show()
+        print('\n\n')
+
+
+    uncertainty_stats = pd.DataFrame(report['uncertainty_stats']).round(2)
+
+    fig = px.bar(x=uncertainty_stats.sort_values(by='all_entropies', ascending=False)['all_classes'], y=uncertainty_stats.sort_values(by='all_entropies', ascending=False)['all_entropies'], color=uncertainty_stats.sort_values(by='all_entropies', ascending=False)['all_entropies'],
+                labels={"x":"Classes","y":"Uncertainty Scores of detections"})
+    fig.update_layout(
+        title={'text':"Class Wise Bar Chart Visualization of Uncertainty Scores of detections",
+                            'x':0.5,'y':0.97},
+        xaxis_title="Classes",
+        yaxis_title="Uncertainty Scores (%) -->",
+        font=dict(
+            family="Georgia",
+            size=18
+        )
+    )
+
+    fig.write_html(os.path.join(save_dir, 'class_wise_uncertainty_bar.html'))
+    if show:
+        fig.show()
+        print('\n\n')
+
+
+    margin_stats = pd.DataFrame(report['margin_stats']).round(2)
+
+    fig = px.bar(x=margin_stats.sort_values(by='avg_margin', ascending=True)['margin_class_pairs'], y=margin_stats.sort_values(by='avg_margin', ascending=True)['avg_margin'], color=margin_stats.sort_values(by='avg_margin', ascending=True)['avg_margin'],
+                labels={"x":"Classes","y":"Margin Scores of detections"})
+    fig.update_layout(
+        title={'text':"Class Wise Bar Chart Visualization of Margin Scores of detections",
+                            'x':0.5,'y':0.97},
+        xaxis_title="Class Pairs",
+        yaxis_title="Margin Scores (%) -->",
+        font=dict(
+            family="Georgia",
+            size=18
+        )
+    )
+
+    fig.write_html(os.path.join(save_dir, 'class_wise_avg_margin_bar.html'))
+    if show:
+        fig.show()
+        print('\n\n')
+
+
+    margin_stats = pd.DataFrame(report['margin_stats']).round(2)
+
+    fig = px.bar(x=margin_stats.sort_values(by='count', ascending=False)['margin_class_pairs'], y=margin_stats.sort_values(by='count', ascending=False)['count'], color=margin_stats.sort_values(by='count', ascending=False)['count'],
+                labels={"x":"Classes","y":"Margin Scores of detections"})
+    fig.update_layout(
+        title={'text':"Class Wise Bar Chart Visualization of Class Pairs with number of occurance as max conf and second max conf class",
+                            'x':0.5,'y':0.97},
+        xaxis_title="Class Pairs",
+        yaxis_title="Number of Occurance -->",
+        font=dict(
+            family="Georgia",
+            size=18
+        )
+    )
+
+    fig.write_html(os.path.join(save_dir, 'class_wise_max_2nd_max_class_pairs_bar.html'))
+    if show:
+        fig.show()
+        print('\n\n')
+
+
 
     try:
         overlap_stat_count = pd.DataFrame(report['overlaps_stats_count'])
@@ -160,7 +264,6 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
             go.Scatter(name=str(75)+'%', x=imagewise_stats['timestamp'], y=[75 for i in range(len(imagewise_stats['ACC']))], line = dict(shape = 'linear', color = 'rgb(100, 100, 100)', dash = 'dashdot')),
             go.Scatter(name=str(50)+'%', x=imagewise_stats['timestamp'], y=[50 for i in range(len(imagewise_stats['ACC']))], line = dict(shape = 'linear', color = 'rgb(100, 100, 100)', dash = 'dash')),
             go.Scatter(name=str(25)+'%', x=imagewise_stats['timestamp'], y=[25 for i in range(len(imagewise_stats['ACC']))], line = dict(shape = 'linear', color = 'rgb(100, 100, 100)', dash = 'dot')),
-            
         ])
 
         fig.update_layout(
@@ -182,9 +285,9 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
 
 
         fig = go.Figure(data=[
-            go.Scatter(name='FP', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['FP'], window=rolling_window)),
-            go.Scatter(name='FN', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['FN'], window=rolling_window)),
-            go.Scatter(name='TP', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['TP'], window=rolling_window)),
+            go.Scatter(name='False Positive', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['FP'], window=rolling_window)),
+            go.Scatter(name='False Negetive', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['FN'], window=rolling_window)),
+            go.Scatter(name='True Positive', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['TP'], window=rolling_window)),
         ])
 
         fig.update_layout(
@@ -206,8 +309,8 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
 
 
         fig = go.Figure(data=[
-            go.Scatter(name='Alldets', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['ndets'], window=rolling_window)),
-            go.Scatter(name='LowConfDets', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['nLowConf'], window=rolling_window)),
+            go.Scatter(name='All Detections', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['ndets'], window=rolling_window)),
+            go.Scatter(name='Low ConfDets', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['nLowConf'], window=rolling_window)),
         ])
 
         fig.update_layout(
@@ -253,6 +356,33 @@ def generate_charts_from_report(name, report, imagewise_stats, is_video = True, 
             fig.show()
             print('\n\n')
 
+
+        fig = go.Figure(data=[
+            go.Scatter(name='Average Confidence', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['avg_conf'], window=rolling_window)),
+            go.Scatter(name='Average Uncertainty', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['uncertainty'], window=rolling_window)),
+            go.Scatter(name='Average Margin', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['margin'], window=rolling_window)),
+            go.Scatter(name=str(75)+'%', x=imagewise_stats['timestamp'], y=[75 for i in range(len(imagewise_stats['ACC']))], line = dict(shape = 'linear', color = 'rgb(100, 100, 100)', dash = 'dashdot')),
+            go.Scatter(name=str(50)+'%', x=imagewise_stats['timestamp'], y=[50 for i in range(len(imagewise_stats['ACC']))], line = dict(shape = 'linear', color = 'rgb(100, 100, 100)', dash = 'dash')),
+            go.Scatter(name=str(25)+'%', x=imagewise_stats['timestamp'], y=[25 for i in range(len(imagewise_stats['ACC']))], line = dict(shape = 'linear', color = 'rgb(100, 100, 100)', dash = 'dot')),
+            
+        ])
+
+        fig.update_layout(
+            title={'text':"Time Series Visualzation of Average COnfidence, Uncertainty and Margin",
+                                'x':0.5,'y':0.97},
+            xaxis_title="Video Timestamp -->",
+            yaxis_title="Scores (%) -->",
+            font=dict(
+                family="Georgia",
+                size=18
+            )
+        )
+
+
+        fig.write_html(os.path.join(save_dir, 'time_series_avg_conf_un_margin_line.html'))
+        if show:
+            fig.show()
+            print('\n\n')
 
         fig = go.Figure(data=[
             go.Scatter(name='No. of OverLap', x=imagewise_stats['timestamp'], y=RollingPositiveAverage(imagewise_stats['nOverLap'], window=rolling_window)),
