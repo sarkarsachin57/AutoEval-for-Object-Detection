@@ -104,7 +104,7 @@ def get_avg_conf_stats(imagewise_classlist):
 def get_avg_uncertainty_stats(imagewise_classlist):
     imagewise_classlist_df = pd.DataFrame({"all_classes":list_concat(imagewise_classlist['all_classes']),
     "all_entropies": list_concat(imagewise_classlist['all_entropies'])})
-    return imagewise_classlist_df.groupby('all_classes')['all_entropies'].mean().sort_values(ascending=False).reset_index().to_dict()
+    return imagewise_classlist_df.groupby('all_classes')['all_entropies'].mean().apply(lambda x: x*100).sort_values(ascending=False).reset_index().to_dict()
 
 
 
@@ -115,6 +115,7 @@ def get_margin_stats(imagewise_classlist, count_threshold):
     margin_class_pairs_df = pd.DataFrame([imagewise_classlist_df.groupby('margin_class_pairs')['all_margins'].count(), 
                                           imagewise_classlist_df.groupby('margin_class_pairs')['all_margins'].mean()]).T 
     margin_class_pairs_df.columns = ['count', 'avg_margin']
+    margin_class_pairs_df['avg_margin'] = margin_class_pairs_df['avg_margin'] * 100
     margin_class_pairs_df = margin_class_pairs_df.sort_values(by='count', ascending=False)
     margin_class_pairs_df = margin_class_pairs_df[margin_class_pairs_df['count'] >= count_threshold]
 
