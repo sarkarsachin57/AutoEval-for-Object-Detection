@@ -98,7 +98,7 @@ def get_low_conf_stats(class_specific_stats, alldets_threshold):
 def get_avg_conf_stats(imagewise_classlist):
     imagewise_classlist_df = pd.DataFrame({"all_classes":list_concat(imagewise_classlist['all_classes']),
         "all_confs": list_concat(imagewise_classlist['all_confs'])})
-    return imagewise_classlist_df.groupby('all_classes')['all_confs'].mean().sort_values().reset_index().to_dict()
+    return imagewise_classlist_df.groupby('all_classes')['all_confs'].mean().apply(lambda x: x*100).sort_values().reset_index().to_dict()
 
     
 def get_avg_uncertainty_stats(imagewise_classlist):
