@@ -53,7 +53,7 @@ def evaluate_predictions(name, pred_results_json, eval_fps = cfg['eval_fps'],
         imagewise_stats['aux_dets_save_path'] = []
         imagewise_stats['tp_fp_fn_save_path'] = []
         imagewise_stats['low_conf_save_path'] = []
-        imagewise_stats['high_en_save_path'] = []
+        imagewise_stats['high_un_save_path'] = []
         imagewise_stats['low_margin_save_path'] = []
         imagewise_stats['overlap_save_path'] = []
         
